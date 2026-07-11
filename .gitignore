@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 docs_md/*.md
 NOTES.md
+store_name.txt
