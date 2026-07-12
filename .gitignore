@@ -5,3 +5,4 @@ __pycache__/
 docs_md/*.md
 NOTES.md
 store_name.txt
+state.json

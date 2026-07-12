@@ -16,7 +16,7 @@ def get_or_create_store():
     if os.path.exists(STORE_NAME_FILE):
         with open(STORE_NAME_FILE, "r") as f:
             store_name = f.read().strip()
-        print(f"Đã tìm thấy store cũ: {store_name}, tái sử dụng.")
+        print(f"Found existing store: {store_name}, reusing it.")
         return store_name
 
     store = client.file_search_stores.create(
@@ -25,11 +25,11 @@ def get_or_create_store():
     with open(STORE_NAME_FILE, "w") as f:
         f.write(store.name)
 
-    print(f"Đã tạo store mới: {store.name}")
+    print(f"Created new store: {store.name}")
     return store.name
 
 def get_existing_display_names(store_name):
-    """Lấy danh sách tên file ĐÃ CÓ SẴN trong Store, để tránh upload trùng."""
+    """Get the list of filenames ALREADY in the Store, to avoid duplicate uploads."""
     existing = set()
     documents = client.file_search_stores.documents.list(parent=store_name)
     for doc in documents:
@@ -51,11 +51,11 @@ def upload_single_file(filepath, store_name):
 
 def upload_all_files(store_name):
     md_files = glob.glob("docs_md/*.md")
-    print(f"Tìm thấy {len(md_files)} file local.")
+    print(f"Found {len(md_files)} local files.")
 
-    print("Đang kiểm tra file nào đã có sẵn trong Store...")
+    print("Checking which files are already in the Store...")
     existing_names = get_existing_display_names(store_name)
-    print(f"Store hiện có {len(existing_names)} file.")
+    print(f"Store currently has {len(existing_names)} files.")
 
     files_to_upload = [
         f for f in md_files
@@ -63,10 +63,10 @@ def upload_all_files(store_name):
     ]
     skipped_count = len(md_files) - len(files_to_upload)
 
-    print(f"Cần upload thêm: {len(files_to_upload)} file. (Bỏ qua {skipped_count} file đã có sẵn)\n")
+    print(f"Need to upload: {len(files_to_upload)} files. (Skipping {skipped_count} already present)\n")
 
     if not files_to_upload:
-        print("Không có file nào cần upload thêm. Xong!")
+        print("No files need uploading. Done!")
         return
 
     success_count = 0
@@ -83,18 +83,18 @@ def upload_all_files(store_name):
             try:
                 future.result()
                 success_count += 1
-                print(f"[{i}/{len(files_to_upload)}] ✅ Xong: {filepath}")
+                print(f"[{i}/{len(files_to_upload)}] ✅ Done: {filepath}")
             except Exception as e:
                 fail_count += 1
-                print(f"[{i}/{len(files_to_upload)}] ❌ Lỗi: {filepath} - {e}")
+                print(f"[{i}/{len(files_to_upload)}] ❌ Error: {filepath} - {e}")
 
-    print(f"\n=== KẾT QUẢ ===")
-    print(f"Thành công: {success_count}")
-    print(f"Thất bại: {fail_count}")
-    print(f"Bỏ qua (đã có sẵn): {skipped_count}")
+    print(f"\n=== RESULT ===")
+    print(f"Success: {success_count}")
+    print(f"Failed: {fail_count}")
+    print(f"Skipped (already present): {skipped_count}")
 
 def log_embedding_summary(store_name):
-    print("\n=== TỔNG KẾT EMBEDDING ===")
+    print("\n=== EMBEDDING SUMMARY ===")
 
     documents = client.file_search_stores.documents.list(parent=store_name)
 
@@ -105,15 +105,15 @@ def log_embedding_summary(store_name):
         total_files += 1
         total_bytes += doc.size_bytes
 
-    print(f"Tổng số file đã embed trong Store: {total_files}")
-    print(f"Tổng dung lượng đã embed: {total_bytes:,} bytes (~{total_bytes/1024:.1f} KB)")
-    print("Lưu ý: Gemini File Search API không cung cấp endpoint để đếm số")
-    print("chunk chi tiết cho mỗi document — đây là giới hạn của nền tảng")
-    print("(chunking hoàn toàn managed, không lộ ra ngoài).")
+    print(f"Total files embedded in store: {total_files}")
+    print(f"Total indexed size: {total_bytes:,} bytes (~{total_bytes/1024:.1f} KB)")
+    print("Note: the Gemini File Search API does not expose an endpoint to")
+    print("retrieve a detailed chunk count per document — this is a platform")
+    print("limitation (chunking is fully managed, not exposed).")
 
 if __name__ == "__main__":
     store_name = get_or_create_store()
-    print("Store đang dùng:", store_name)
+    print("Using store:", store_name)
 
     upload_all_files(store_name)
     log_embedding_summary(store_name)

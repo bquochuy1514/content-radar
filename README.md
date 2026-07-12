@@ -15,37 +15,29 @@ to keep it in sync with new/updated articles.
 
 ## How to run locally
 
-### 1. Scrape articles and convert to Markdown
+### One-off setup: scrape + upload individually
 
 ```
 python scraper/save_articles.py
-```
-
-Calls the support site's Zendesk API (paginated — it only returns 30
-articles per page, and there are 406 total), pulls the `body` field (HTML)
-from each article, converts it to Markdown with `markdownify`, and saves
-one `.md` file per article into `docs_md/`.
-
-### 2. Upload the Markdown files into the vector store
-
-```
 python scraper/upload_to_gemini.py
 ```
 
-Creates (or reuses, if one already exists) a Gemini File Search Store, then
-uploads every `.md` file into it via the API. Before uploading, it checks
-which files are already in the store and skips those — I added this after
-getting hit by a network timeout mid-upload a couple of times, which caused
-duplicate uploads when I just reran the script from scratch.
+These two scripts do the scrape and the upload as separate steps (useful
+for testing each part independently). `save_articles.py` calls the support
+site's Zendesk API (paginated), converts each article's HTML `body` to
+Markdown with `markdownify`, and saves one `.md` file per article into
+`docs_md/`. `upload_to_gemini.py` uploads every `.md` file into a Gemini
+File Search Store via the API, skipping files already present.
 
-Uploads run in parallel across 10 threads (`ThreadPoolExecutor`). The first
-version uploaded one file at a time and waited for each to finish indexing
-before moving to the next — with 406 files that was on track to take over
-2 hours, so I switched to sending all uploads concurrently and polling for
-completion afterward instead.
+### Daily sync (the actual pipeline used in production)
 
-(TODO: `main.py` will wrap both scripts above into a single entry point,
-once the daily job piece is done)
+```
+python main.py
+```
+
+This is the real entry point — it wraps scraping and uploading together,
+plus delta detection (see below) so re-runs only touch what's actually
+changed.
 
 ## Data source
 
@@ -68,6 +60,48 @@ Success: 405
 Failed: 1
 Skipped (already present): 0
 ```
+
+![Upload running](screenshots/upload_log_running.jpg)
+
+## Daily sync / delta detection
+
+`main.py` is the entry point for the daily job. Instead of re-scraping and
+re-uploading everything every time, it keeps a small `state.json` file that
+remembers each article's `id` and `updated_at` from the last run. On each
+run:
+
+- If an article's `updated_at` matches what's in `state.json` → skipped
+  entirely (no file rewrite, no upload).
+- If it's a new article, or `updated_at` changed → the old version (if any)
+  is deleted from the File Search Store, and the new version is uploaded.
+
+First run (empty `state.json`, everything is new):
+
+```
+Need to process: 406 articles. Unchanged (skip): 0 articles.
+...
+=== SYNC RESULT ===
+Added: 405
+Updated: 0
+Skipped (unchanged): 0
+Failed: 1
+```
+
+Second run, immediately after (nothing changed on the support site):
+
+```
+Need to process: 1 article. Unchanged (skip): 405 articles.
+[1/1] Error: how-to-use-the-qr-scan-to-interact-touchless-qr-app.md - 400 Bad Request
+=== SYNC RESULT ===
+Added: 0
+Updated: 0
+Skipped (unchanged): 405
+Failed: 1
+```
+
+The 405 skipped articles confirm the delta detection is working correctly
+— the second run only re-attempted the one article that was already
+failing, instead of re-uploading everything.
 
 ## Chunking strategy
 
@@ -117,5 +151,21 @@ indexed bytes), which is the most granular data actually available here.
 
 ## Screenshot
 
-(TODO: add screenshot of the assistant answering with citations, once the
-system prompt / assistant part is done)
+Sanity check — asking "How do I add a YouTube video?" and getting a
+correct answer with citation:
+
+![Sanity check](screenshots/sanity_check_youtube_video.jpg)
+
+## Known limitations
+
+- **State persistence on cloud deploy:** `state.json` (used for delta
+  detection) is stored on local disk. If the daily job runs on a platform
+  with an ephemeral filesystem (e.g. a fresh container per run), this file
+  won't persist between runs, and every run would be treated as a fresh
+  sync (all articles "added" again) instead of detecting deltas correctly.
+  A proper fix would be persisting `state.json` to something durable —
+  a small database, a cloud storage bucket, or a mounted persistent volume
+  — depending on the deployment platform. Given the time constraints for
+  this task, this wasn't implemented; the delta detection logic itself is
+  correct and tested locally (see the two-run comparison above), but
+  persistence across cloud container restarts is a known gap.

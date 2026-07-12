@@ -1,7 +1,7 @@
 import os
 import re
-from fetch_articles import fetch_all_articles
-from convert_to_markdown import html_to_markdown
+from .fetch_articles import fetch_all_articles
+from .convert_to_markdown import html_to_markdown
 
 OUTPUT_DIR = "docs_md"
 
@@ -31,10 +31,10 @@ def save_one_article(article):
 if __name__ == "__main__":
     articles = fetch_all_articles()
 
-    print(f"\nBắt đầu convert {len(articles)} bài viết...")
+    print(f"\nStarting to convert {len(articles)} articles...")
 
     for i, article in enumerate(articles, start=1):
         saved_path = save_one_article(article)
-        print(f"[{i}/{len(articles)}] Đã lưu: {saved_path}")
+        print(f"[{i}/{len(articles)}] Saved: {saved_path}")
 
-    print("\n=== HOÀN TẤT TOÀN BỘ ===")
+    print("\n=== ALL DONE ===")

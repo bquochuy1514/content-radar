@@ -11,13 +11,13 @@ def fetch_all_articles():
         data = response.json()
 
         all_articles.extend(data["articles"])
-        print(f"Đã lấy trang này, tổng cộng hiện có: {len(all_articles)} bài")
+        print(f"Fetched this page, total so far: {len(all_articles)} articles")
 
-        url = data["next_page"]  # trang kế tiếp, hoặc None nếu hết
+        url = data["next_page"]  # next page, or None if there are no more
 
     return all_articles
 
 if __name__ == "__main__":
     articles = fetch_all_articles()
-    print("\n=== HOÀN TẤT ===")
-    print("Tổng số bài viết lấy được:", len(articles))
+    print("\n=== DONE ===")
+    print("Total articles fetched:", len(articles))
