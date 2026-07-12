@@ -145,6 +145,27 @@ So for this project, exact chunk counts aren't retrievable through the API
 being used. I'm logging file-level metrics instead (file count + total
 indexed bytes), which is the most granular data actually available here.
 
+## Docker
+
+Build and run locally:
+
+docker build -t content-radar .
+docker run --env-file .env content-radar
+
+Verified output (confirms delta detection also works correctly inside
+the container, not just when run directly with Python):
+
+=== Starting daily sync ===
+Found existing store: fileSearchStores/optibotclonestore-108whuq2c3w5, reusing it.
+...
+Need to process: 1 articles. Unchanged (skip): 405 articles.
+[1/1] Error: how-to-use-the-qr-scan-to-interact-touchless-qr-app.md - 400 Bad Request
+=== SYNC RESULT ===
+Added: 0
+Updated: 0
+Skipped (unchanged): 405
+Failed: 1
+
 ## Daily job logs
 
 (TODO: fill in after deploying the daily job)
