@@ -168,7 +168,26 @@ Failed: 1
 
 ## Daily job logs
 
-(TODO: fill in after deploying the daily job)
+Deployed via GitHub Actions (`.github/workflows/daily-sync.yml`), scheduled
+to run daily at 00:00 UTC (`cron: "0 0 * * *"`), with manual trigger enabled
+for testing (`workflow_dispatch`).
+
+First manual run: https://github.com/bquochuy1514/content-radar/actions/runs/29181656359
+
+Status: Success, 5m 45s.
+
+=== SYNC RESULT ===
+Added: 405
+Updated: 0
+Skipped (unchanged): 0
+Failed: 1
+
+Note: this run shows everything as "Added" rather than "Skipped" because
+`state.json` is gitignored and doesn't exist yet on a fresh GitHub Actions
+runner — this is the same state-persistence limitation described above.
+Locally (where `state.json` persists between runs), the second run
+correctly skipped all 405 unchanged articles, as shown earlier in this
+README.
 
 ## Screenshot
 
